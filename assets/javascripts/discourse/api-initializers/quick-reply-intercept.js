@@ -1,4 +1,5 @@
 import { action } from "@ember/object";
+import { getOwner } from "@ember/owner";
 import { service } from "@ember/service";
 import { apiInitializer } from "discourse/lib/api";
 import DiscourseURL from "discourse/lib/url";
@@ -18,8 +19,13 @@ export default apiInitializer("1.8.0", (api) => {
           post.post_number
         );
 
+        const site = getOwner(this).lookup("service:site");
+        const disabledOnMobile =
+          settings.quick_reply_disable_on_mobile && site?.mobileView;
+
         const useQuickBox =
           settings.quick_reply_box_enabled &&
+          !disabledOnMobile &&
           topic?.details?.can_create_post &&
           (!isPostTarget || settings.quick_reply_intercept_post_replies);
 

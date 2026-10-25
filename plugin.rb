@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# name: discourse-reply
+# name: discourse-quick-reply-box
 # about: XenForo-style quick reply box at the bottom of every topic, replacing the popup composer for replies.
 # version: 0.1.0
-# authors: manubazsi
+# authors: you
 # url: https://github.com/your-name/discourse-quick-reply-box
 # required_version: 3.3.0
 

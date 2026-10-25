@@ -25,6 +25,7 @@ export default class QuickReplyBox extends Component {
   @service composer;
   @service currentUser;
   @service quickReply;
+  @service site;
   @service siteSettings;
 
   @tracked text = "";
@@ -39,6 +40,9 @@ export default class QuickReplyBox extends Component {
 
   constructor() {
     super(...arguments);
+    if (this.hidden) {
+      return;
+    }
     this.text = this.loadDraft();
     this.quickReply.register(this.focusBox);
   }
@@ -46,6 +50,12 @@ export default class QuickReplyBox extends Component {
   willDestroy() {
     super.willDestroy(...arguments);
     this.quickReply.unregister(this.focusBox);
+  }
+
+  get hidden() {
+    return !!(
+      this.siteSettings.quick_reply_disable_on_mobile && this.site.mobileView
+    );
   }
 
   get topic() {
@@ -63,6 +73,10 @@ export default class QuickReplyBox extends Component {
   get avatarSrc() {
     const tpl = this.currentUser?.avatar_template;
     return tpl ? getURLWithCDN(tpl.replace("{size}", "90")) : null;
+  }
+
+  get placeholderText() {
+    return i18n("quick_reply.placeholder");
   }
 
   get submitDisabled() {
@@ -158,8 +172,9 @@ export default class QuickReplyBox extends Component {
 
     const data = { raw, topic_id: this.topic.id };
     const target = this.quickReply.replyToPost;
-    if (target?.post_number) {
-      data.reply_to_post_number = target.post_number;
+    const targetNumber = Number(target?.post_number);
+    if (targetNumber > 0) {
+      data.reply_to_post_number = targetNumber;
     }
 
     try {
@@ -409,6 +424,7 @@ export default class QuickReplyBox extends Component {
             @value={{this.text}}
             @change={{this.onChange}}
             @placeholder="quick_reply.placeholder"
+            @placeholderOverride={{this.placeholderText}}
             @topicId={{this.topic.id}}
             @categoryId={{this.topic.category_id}}
             @disabled={{this.submitting}}
@@ -460,5 +476,6 @@ export default class QuickReplyBox extends Component {
         </div>
       </div>
     </div>
+    {{/unless}}
   </template>
 }

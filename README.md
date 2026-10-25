@@ -11,13 +11,14 @@ a felugró szerkesztő helyett ebbe a dobozba visznek.
         - exec:
             cd: $home/plugins
             cmd:
-              - git clone https://github.com/manubazsi/discourse-quick.git
+              - git clone https://github.com/your-name/discourse-quick-reply-box.git
 
 Majd: `cd /var/discourse && ./launcher rebuild app`
 
 ## Beállítások (Admin -> Plugins / Site settings)
 - `quick_reply_box_enabled` - ki/be kapcsolás
 - `quick_reply_intercept_post_replies` - a posztonkénti Válasz gombok is a dobozt használják
+- `quick_reply_disable_on_mobile` - mobilon kikapcsolja a dobozt, a normál szerkesztő marad
 
 ## Működés
 - Outlet: `topic-above-footer-buttons` (csak bejelentkezett felhasználóknak jelenik meg).
