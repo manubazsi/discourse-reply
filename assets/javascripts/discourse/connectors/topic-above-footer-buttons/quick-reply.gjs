@@ -7,7 +7,7 @@ import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
-import { popupAjaxError } from "discourse/lib/ajax-error";
+import { extractError } from "discourse/lib/ajax-error";
 import { getURLWithCDN } from "discourse/lib/get-url";
 import Composer from "discourse/models/composer";
 import { i18n } from "discourse-i18n";
@@ -247,7 +247,8 @@ export default class QuickReplyBox extends Component {
       }
       this.resetBox();
     } catch (e) {
-      popupAjaxError(e);
+      this.noticeIsError = true;
+      this.notice = extractError(e);
     } finally {
       this.submitting = false;
     }
