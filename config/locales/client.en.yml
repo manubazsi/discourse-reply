@@ -6,8 +6,6 @@ en:
       submit: "Reply"
       full_composer: "Full editor"
       full_composer_title: "Continue in the full editor"
-      replying_to: "Replying to %{username} (#%{post_number})"
-      cancel_target: "Reply to the topic instead"
       queued: "Your reply was submitted and is waiting for approval."
       too_short: "Your reply is too short (minimum %{min} characters)."
       bold: "Bold"

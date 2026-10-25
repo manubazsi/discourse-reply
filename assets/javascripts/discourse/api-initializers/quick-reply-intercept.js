@@ -18,7 +18,6 @@ export default apiInitializer("1.8.0", (api) => {
           typeof post === "object" &&
           post.post_number
         );
-
         const site = getOwner(this).lookup("service:site");
         const disabledOnMobile =
           settings.quick_reply_disable_on_mobile && site?.mobileView;
@@ -27,16 +26,13 @@ export default apiInitializer("1.8.0", (api) => {
           settings.quick_reply_box_enabled &&
           !disabledOnMobile &&
           topic?.details?.can_create_post &&
-          (!isPostTarget || settings.quick_reply_intercept_post_replies);
+          !isPostTarget;
 
         if (!useQuickBox) {
           return super.replyToPost(...arguments);
         }
 
-        const replyTarget =
-          isPostTarget && Number(post.post_number) > 1 ? post : null;
-
-        this.quickReply.focus(replyTarget);
+        this.quickReply.focus();
 
         if (!this.quickReply.handler) {
           const url =

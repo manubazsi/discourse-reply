@@ -6,8 +6,6 @@ hu:
       submit: "Válasz"
       full_composer: "Teljes szerkesztő"
       full_composer_title: "Folytatás a teljes szerkesztőben"
-      replying_to: "Válasz %{username} hozzászólására (#%{post_number})"
-      cancel_target: "Válasz a témára"
       queued: "A válaszod elküldve, jóváhagyásra vár."
       too_short: "A válaszod túl rövid (minimum %{min} karakter)."
       bold: "Félkövér"

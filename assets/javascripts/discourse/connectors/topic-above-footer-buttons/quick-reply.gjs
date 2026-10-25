@@ -5,7 +5,6 @@ import { action } from "@ember/object";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
-import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
 import { getURLWithCDN } from "discourse/lib/get-url";
@@ -143,10 +142,6 @@ export default class QuickReplyBox extends Component {
     }
   }
 
-  @action
-  clearTarget() {
-    this.quickReply.replyToPost = null;
-  }
 
   wrap(before, after, placeholder) {
     const el = this.textarea;
@@ -197,7 +192,6 @@ export default class QuickReplyBox extends Component {
   resetBox() {
     this.text = "";
     this.saveDraft();
-    this.quickReply.replyToPost = null;
     if (this.textarea) {
       this.textarea.value = "";
       this.textarea.style.height = "";
@@ -224,10 +218,6 @@ export default class QuickReplyBox extends Component {
     this.notice = null;
 
     const data = { raw, topic_id: this.topic.id };
-    const targetNumber = Number(this.quickReply.replyToPost?.post_number);
-    if (targetNumber > 1) {
-      data.reply_to_post_number = targetNumber;
-    }
 
     try {
       const result = await ajax("/posts.json", { type: "POST", data });
@@ -262,7 +252,6 @@ export default class QuickReplyBox extends Component {
       draftKey: topic.draft_key,
       draftSequence: topic.draft_sequence,
       topic,
-      post: this.quickReply.replyToPost || undefined,
       reply: this.text,
     });
     this.resetBox();
@@ -278,23 +267,6 @@ export default class QuickReplyBox extends Component {
         {{/if}}
 
         <div class="quick-reply__main">
-          {{#if this.quickReply.replyToPost}}
-            <div class="quick-reply__target">
-              {{icon "reply"}}
-              <span>{{i18n
-                  "quick_reply.replying_to"
-                  username=this.quickReply.replyToPost.username
-                  post_number=this.quickReply.replyToPost.post_number
-                }}</span>
-              <DButton
-                @icon="xmark"
-                @action={{this.clearTarget}}
-                @title="quick_reply.cancel_target"
-                class="btn-flat btn-small quick-reply__target-clear"
-              />
-            </div>
-          {{/if}}
-
           {{#if this.showToolbar}}
             <div class="quick-reply__toolbar">
               <DButton @icon="bold" @action={{this.bold}} @title="quick_reply.bold" class="btn-flat btn-small" />
