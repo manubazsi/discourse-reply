@@ -2,4 +2,3 @@ hu:
   site_settings:
     quick_reply_box_enabled: "Azonnali válasz doboz megjelenítése a témák alján, a felugró szerkesztő helyett."
     quick_reply_intercept_post_replies: "A hozzászólásoknál lévő Válasz gombok is az azonnali válasz dobozt használják (a válasz az adott hozzászóláshoz kapcsolódik). Kikapcsolva ezek a normál szerkesztőt nyitják meg."
-    quick_reply_show_toolbar: "Kis formázó eszköztár megjelenítése a válasz doboz felett."

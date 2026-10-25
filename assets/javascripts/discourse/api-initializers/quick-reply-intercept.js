@@ -29,8 +29,6 @@ export default apiInitializer("1.8.0", (api) => {
 
         this.quickReply.focus(isPostTarget ? post : null);
 
-        // The box lives below the last post. If it isn't on screen yet,
-        // jump to the end of the topic; the box will focus itself on mount.
         if (!this.quickReply.handler) {
           const url =
             topic.lastPostUrl || `${topic.url}/${topic.highest_post_number}`;

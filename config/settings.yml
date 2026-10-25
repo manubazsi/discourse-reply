@@ -5,6 +5,3 @@ plugins:
   quick_reply_intercept_post_replies:
     default: true
     client: true
-  quick_reply_show_toolbar:
-    default: true
-    client: true

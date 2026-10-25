@@ -2,7 +2,6 @@ en:
   js:
     quick_reply:
       placeholder: "Write your reply… (Ctrl+Enter to send)"
-      aria_label: "Quick reply"
       submit: "Reply"
       full_composer: "Full editor"
       full_composer_title: "Continue in the full editor"
@@ -10,8 +9,7 @@ en:
       cancel_target: "Reply to the topic instead"
       queued: "Your reply was submitted and is waiting for approval."
       too_short: "Your reply is too short (minimum %{min} characters)."
-      bold: "Bold"
-      italic: "Italic"
-      quote: "Quote"
-      code: "Code"
-      link: "Link"
+      upload: "Upload"
+      upload_title: "Upload a file or image (you can also paste or drop files)"
+      upload_not_allowed: "The file type of %{name} is not allowed."
+      upload_too_large: "%{name} is too large (maximum %{max} KB)."

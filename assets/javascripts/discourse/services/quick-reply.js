@@ -1,7 +1,6 @@
 import { tracked } from "@glimmer/tracking";
 import Service from "@ember/service";
 
-// Shared state between the topic controller override and the box component.
 export default class QuickReplyService extends Service {
   @tracked replyToPost = null;
 
@@ -19,8 +18,6 @@ export default class QuickReplyService extends Service {
     }
   }
 
-  // Called by the Reply buttons. If the box isn't mounted yet (the user is
-  // mid-topic), remember the request; the box consumes it when it appears.
   focus(post = null) {
     this.replyToPost = post;
     if (this.handler) {
