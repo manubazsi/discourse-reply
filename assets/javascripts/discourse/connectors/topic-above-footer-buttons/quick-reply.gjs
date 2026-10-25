@@ -383,6 +383,7 @@ export default class QuickReplyBox extends Component {
   }
 
   <template>
+    {{#unless this.hidden}}
     <div
       class="quick-reply {{if this.dragging 'is-dragging'}}"
       id="quick-reply-box"
