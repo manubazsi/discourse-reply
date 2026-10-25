@@ -11,7 +11,7 @@ a felugró szerkesztő helyett ebbe a dobozba visznek.
         - exec:
             cd: $home/plugins
             cmd:
-              - git clone https://github.com/your-name/discourse-quick-reply-box.git
+              - git clone https://github.com/manubazsi/discourse-quick.git
 
 Majd: `cd /var/discourse && ./launcher rebuild app`
 
