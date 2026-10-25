@@ -33,7 +33,10 @@ export default apiInitializer("1.8.0", (api) => {
           return super.replyToPost(...arguments);
         }
 
-        this.quickReply.focus(isPostTarget ? post : null);
+        const replyTarget =
+          isPostTarget && Number(post.post_number) > 1 ? post : null;
+
+        this.quickReply.focus(replyTarget);
 
         if (!this.quickReply.handler) {
           const url =

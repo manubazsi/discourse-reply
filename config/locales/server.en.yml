@@ -2,4 +2,5 @@ en:
   site_settings:
     quick_reply_box_enabled: "Show an inline quick reply box at the bottom of topics and use it instead of the popup composer for replies."
     quick_reply_intercept_post_replies: "Also send the per-post Reply buttons to the quick reply box (the reply is linked to that post). If disabled, those buttons open the normal composer."
+    quick_reply_show_toolbar: "Show the small formatting toolbar above the quick reply box."
     quick_reply_disable_on_mobile: "Disable the quick reply box on mobile devices. The standard composer is used instead."

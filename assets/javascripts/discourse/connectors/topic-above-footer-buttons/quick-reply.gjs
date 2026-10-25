@@ -2,11 +2,9 @@ import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
-import { next } from "@ember/runloop";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
-import DEditor from "discourse/components/d-editor";
 import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
@@ -32,11 +30,8 @@ export default class QuickReplyBox extends Component {
   @tracked notice = null;
   @tracked noticeIsError = false;
   @tracked submitting = false;
-  @tracked uploading = false;
-  @tracked dragging = false;
 
-  root = null;
-  fileInput = null;
+  textarea = null;
 
   constructor() {
     super(...arguments);
@@ -75,14 +70,12 @@ export default class QuickReplyBox extends Component {
     return tpl ? getURLWithCDN(tpl.replace("{size}", "90")) : null;
   }
 
-  get placeholderText() {
-    return i18n("quick_reply.placeholder");
+  get showToolbar() {
+    return this.siteSettings.quick_reply_show_toolbar;
   }
 
   get submitDisabled() {
-    return (
-      this.submitting || this.uploading || this.text.trim().length === 0
-    );
+    return this.submitting || this.text.trim().length === 0;
   }
 
   loadDraft() {
@@ -105,31 +98,39 @@ export default class QuickReplyBox extends Component {
     }
   }
 
+  autosize() {
+    const el = this.textarea;
+    if (!el) {
+      return;
+    }
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight + 2, 420)}px`;
+  }
+
   @action
-  setRoot(el) {
-    this.root = el;
+  setTextarea(el) {
+    this.textarea = el;
+    this.autosize();
     if (this.quickReply.consumePending()) {
-      next(() => this.focusBox());
+      this.focusBox();
     }
   }
 
   @action
   focusBox() {
-    if (!this.root) {
+    const el = this.textarea;
+    if (!el) {
       return;
     }
-    this.root.scrollIntoView({ behavior: "smooth", block: "center" });
-    const input = this.root.querySelector(
-      "textarea.d-editor-input, .ProseMirror, textarea"
-    );
-    input?.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
   }
 
   @action
-  onChange(value) {
-    const next = typeof value === "string" ? value : value?.target?.value;
-    this.text = next ?? "";
+  onInput(event) {
+    this.text = event.target.value;
     this.saveDraft();
+    this.autosize();
   }
 
   @action
@@ -137,6 +138,8 @@ export default class QuickReplyBox extends Component {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       this.submit();
+    } else if (event.key === "Escape") {
+      event.target.blur();
     }
   }
 
@@ -145,10 +148,60 @@ export default class QuickReplyBox extends Component {
     this.quickReply.replyToPost = null;
   }
 
+  wrap(before, after, placeholder) {
+    const el = this.textarea;
+    if (!el) {
+      return;
+    }
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = el.value.slice(start, end) || placeholder;
+    const next =
+      el.value.slice(0, start) + before + selected + after + el.value.slice(end);
+    el.value = next;
+    this.text = next;
+    this.saveDraft();
+    el.focus();
+    el.setSelectionRange(
+      start + before.length,
+      start + before.length + selected.length
+    );
+    this.autosize();
+  }
+
+  @action
+  bold() {
+    this.wrap("**", "**", i18n("quick_reply.bold"));
+  }
+
+  @action
+  italic() {
+    this.wrap("*", "*", i18n("quick_reply.italic"));
+  }
+
+  @action
+  quote() {
+    this.wrap("> ", "", i18n("quick_reply.quote"));
+  }
+
+  @action
+  code() {
+    this.wrap("`", "`", "code");
+  }
+
+  @action
+  link() {
+    this.wrap("[", "](https://)", i18n("quick_reply.link"));
+  }
+
   resetBox() {
     this.text = "";
     this.saveDraft();
     this.quickReply.replyToPost = null;
+    if (this.textarea) {
+      this.textarea.value = "";
+      this.textarea.style.height = "";
+    }
   }
 
   @action
@@ -171,9 +224,8 @@ export default class QuickReplyBox extends Component {
     this.notice = null;
 
     const data = { raw, topic_id: this.topic.id };
-    const target = this.quickReply.replyToPost;
-    const targetNumber = Number(target?.post_number);
-    if (targetNumber > 0) {
+    const targetNumber = Number(this.quickReply.replyToPost?.post_number);
+    if (targetNumber > 1) {
       data.reply_to_post_number = targetNumber;
     }
 
@@ -202,173 +254,6 @@ export default class QuickReplyBox extends Component {
   }
 
   @action
-  setFileInput(el) {
-    this.fileInput = el;
-  }
-
-  @action
-  openFilePicker() {
-    this.fileInput?.click();
-  }
-
-  @action
-  onFilesChosen(event) {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    this.uploadFiles(files);
-  }
-
-  @action
-  onDragOver(event) {
-    if (event.dataTransfer?.types?.includes("Files")) {
-      event.preventDefault();
-      this.dragging = true;
-    }
-  }
-
-  @action
-  onDragLeave(event) {
-    if (!this.root?.contains(event.relatedTarget)) {
-      this.dragging = false;
-    }
-  }
-
-  @action
-  onDrop(event) {
-    const files = Array.from(event.dataTransfer?.files || []);
-    this.dragging = false;
-    if (files.length) {
-      event.preventDefault();
-      this.uploadFiles(files);
-    }
-  }
-
-  @action
-  onPaste(event) {
-    const files = Array.from(event.clipboardData?.files || []);
-    if (files.length) {
-      event.preventDefault();
-      this.uploadFiles(files);
-    }
-  }
-
-  extensionOf(file) {
-    return (file.name.split(".").pop() || "").toLowerCase();
-  }
-
-  isImageFile(file) {
-    return /^(png|jpe?g|gif|webp|avif|bmp|ico|heic|heif)$/.test(
-      this.extensionOf(file)
-    );
-  }
-
-  isAllowedFile(file) {
-    const lists = [this.siteSettings.authorized_extensions];
-    if (this.currentUser?.staff) {
-      lists.push(this.siteSettings.authorized_extensions_for_staff);
-    }
-    const allowed = lists
-      .join("|")
-      .split("|")
-      .map((e) => e.trim().toLowerCase().replace(/^\./, ""))
-      .filter(Boolean);
-    return allowed.includes("*") || allowed.includes(this.extensionOf(file));
-  }
-
-  maxSizeKb(file) {
-    return this.isImageFile(file)
-      ? this.siteSettings.max_image_size_kb
-      : this.siteSettings.max_attachment_size_kb;
-  }
-
-  markdownFor(upload, file) {
-    const name = (upload.original_filename || file.name)
-      .replace(/\.[^.]+$/, "")
-      .replace(/[\[\]]/g, "");
-    if (this.isImageFile(file)) {
-      const w = upload.thumbnail_width || upload.width;
-      const h = upload.thumbnail_height || upload.height;
-      const dims = w && h ? `|${w}x${h}` : "";
-      return `![${name}${dims}](${upload.short_url || upload.url})`;
-    }
-    const size = upload.human_filesize ? ` (${upload.human_filesize})` : "";
-    return `[${upload.original_filename || file.name}|attachment](${
-      upload.short_url || upload.url
-    })${size}`;
-  }
-
-  insertMarkdown(markdown) {
-    const ta = this.root?.querySelector("textarea.d-editor-input");
-    const current = ta ? ta.value : this.text;
-    let next;
-    if (ta) {
-      const start = ta.selectionStart ?? current.length;
-      const end = ta.selectionEnd ?? start;
-      const before = current.slice(0, start);
-      const lead = before && !before.endsWith("\n") ? "\n" : "";
-      next = `${before}${lead}${markdown}\n${current.slice(end)}`;
-    } else {
-      const lead = current && !current.endsWith("\n") ? "\n" : "";
-      next = `${current}${lead}${markdown}\n`;
-    }
-    this.text = next;
-    this.saveDraft();
-  }
-
-  async uploadFiles(files) {
-    if (!files.length || this.uploading) {
-      return;
-    }
-
-    this.uploading = true;
-    this.notice = null;
-
-    try {
-      for (const file of files) {
-        if (!this.isAllowedFile(file)) {
-          this.noticeIsError = true;
-          this.notice = i18n("quick_reply.upload_not_allowed", {
-            name: file.name,
-          });
-          continue;
-        }
-
-        const maxKb = this.maxSizeKb(file);
-        if (maxKb && file.size / 1024 > maxKb) {
-          this.noticeIsError = true;
-          this.notice = i18n("quick_reply.upload_too_large", {
-            name: file.name,
-            max: maxKb,
-          });
-          continue;
-        }
-
-        const form = new FormData();
-        form.append("type", "composer");
-        form.append("synchronous", "true");
-        form.append("file", file, file.name);
-        if (this.isPM) {
-          form.append("for_private_message", "true");
-        }
-
-        try {
-          const upload = await ajax("/uploads.json", {
-            type: "POST",
-            data: form,
-            processData: false,
-            contentType: false,
-          });
-          this.insertMarkdown(this.markdownFor(upload, file));
-        } catch (e) {
-          popupAjaxError(e);
-        }
-      }
-    } finally {
-      this.uploading = false;
-    }
-  }
-
-  @action
   openFullComposer() {
     const topic = this.topic;
     this.composer.open({
@@ -384,99 +269,79 @@ export default class QuickReplyBox extends Component {
 
   <template>
     {{#unless this.hidden}}
-    <div
-      class="quick-reply {{if this.dragging 'is-dragging'}}"
-      id="quick-reply-box"
-      {{didInsert this.setRoot}}
-      {{on "dragover" this.onDragOver}}
-      {{on "dragleave" this.onDragLeave}}
-      {{on "drop" this.onDrop}}
-    >
-      {{#if this.avatarSrc}}
-        <div class="quick-reply__avatar">
-          <img src={{this.avatarSrc}} alt="" width="45" height="45" />
-        </div>
-      {{/if}}
-
-      <div class="quick-reply__main">
-        {{#if this.quickReply.replyToPost}}
-          <div class="quick-reply__target">
-            {{icon "reply"}}
-            <span>{{i18n
-                "quick_reply.replying_to"
-                username=this.quickReply.replyToPost.username
-                post_number=this.quickReply.replyToPost.post_number
-              }}</span>
-            <DButton
-              @icon="xmark"
-              @action={{this.clearTarget}}
-              @title="quick_reply.cancel_target"
-              class="btn-flat btn-small quick-reply__target-clear"
-            />
+      <div class="quick-reply" id="quick-reply-box">
+        {{#if this.avatarSrc}}
+          <div class="quick-reply__avatar">
+            <img src={{this.avatarSrc}} alt="" width="45" height="45" />
           </div>
         {{/if}}
 
-        <div
-          class="quick-reply__editor"
-          {{on "keydown" this.onKeydown}}
-          {{on "paste" this.onPaste}}
-        >
-          <DEditor
-            @value={{this.text}}
-            @change={{this.onChange}}
-            @placeholder="quick_reply.placeholder"
-            @placeholderOverride={{this.placeholderText}}
-            @topicId={{this.topic.id}}
-            @categoryId={{this.topic.category_id}}
-            @disabled={{this.submitting}}
-          />
-        </div>
+        <div class="quick-reply__main">
+          {{#if this.quickReply.replyToPost}}
+            <div class="quick-reply__target">
+              {{icon "reply"}}
+              <span>{{i18n
+                  "quick_reply.replying_to"
+                  username=this.quickReply.replyToPost.username
+                  post_number=this.quickReply.replyToPost.post_number
+                }}</span>
+              <DButton
+                @icon="xmark"
+                @action={{this.clearTarget}}
+                @title="quick_reply.cancel_target"
+                class="btn-flat btn-small quick-reply__target-clear"
+              />
+            </div>
+          {{/if}}
 
-        {{#if this.notice}}
-          <div
-            class="quick-reply__notice
-              {{if this.noticeIsError 'is-error' 'is-info'}}"
-            role="status"
-          >{{this.notice}}</div>
-        {{/if}}
+          {{#if this.showToolbar}}
+            <div class="quick-reply__toolbar">
+              <DButton @icon="bold" @action={{this.bold}} @title="quick_reply.bold" class="btn-flat btn-small" />
+              <DButton @icon="italic" @action={{this.italic}} @title="quick_reply.italic" class="btn-flat btn-small" />
+              <DButton @icon="quote-right" @action={{this.quote}} @title="quick_reply.quote" class="btn-flat btn-small" />
+              <DButton @icon="code" @action={{this.code}} @title="quick_reply.code" class="btn-flat btn-small" />
+              <DButton @icon="link" @action={{this.link}} @title="quick_reply.link" class="btn-flat btn-small" />
+            </div>
+          {{/if}}
 
-        <input
-          type="file"
-          multiple
-          hidden
-          class="quick-reply__file-input"
-          {{didInsert this.setFileInput}}
-          {{on "change" this.onFilesChosen}}
-        />
+          <textarea
+            class="quick-reply__input"
+            rows="3"
+            aria-label={{i18n "quick_reply.aria_label"}}
+            placeholder={{i18n "quick_reply.placeholder"}}
+            value={{this.text}}
+            {{didInsert this.setTextarea}}
+            {{on "input" this.onInput}}
+            {{on "keydown" this.onKeydown}}
+          ></textarea>
 
-        <div class="quick-reply__actions">
-          <DButton
-            @action={{this.submit}}
-            @icon="reply"
-            @label="quick_reply.submit"
-            @disabled={{this.submitDisabled}}
-            @isLoading={{this.submitting}}
-            class="btn-primary quick-reply__submit"
-          />
-          <DButton
-            @action={{this.openFilePicker}}
-            @icon="upload"
-            @label="quick_reply.upload"
-            @title="quick_reply.upload_title"
-            @isLoading={{this.uploading}}
-            @disabled={{this.submitting}}
-            class="btn-default quick-reply__upload"
-          />
-          <DButton
-            @action={{this.openFullComposer}}
-            @icon="up-right-and-down-left-from-center"
-            @label="quick_reply.full_composer"
-            @title="quick_reply.full_composer_title"
-            class="btn-default quick-reply__full"
-          />
+          {{#if this.notice}}
+            <div
+              class="quick-reply__notice
+                {{if this.noticeIsError 'is-error' 'is-info'}}"
+              role="status"
+            >{{this.notice}}</div>
+          {{/if}}
+
+          <div class="quick-reply__actions">
+            <DButton
+              @action={{this.submit}}
+              @icon="reply"
+              @label="quick_reply.submit"
+              @disabled={{this.submitDisabled}}
+              @isLoading={{this.submitting}}
+              class="btn-primary quick-reply__submit"
+            />
+            <DButton
+              @action={{this.openFullComposer}}
+              @icon="up-right-and-down-left-from-center"
+              @label="quick_reply.full_composer"
+              @title="quick_reply.full_composer_title"
+              class="btn-default quick-reply__full"
+            />
+          </div>
         </div>
       </div>
-    </div>
     {{/unless}}
   </template>
 }
