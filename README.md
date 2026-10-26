@@ -1,3 +1,4 @@
+<img width="876" height="274" alt="Képernyőfotó 2026-10-26 - 11 26 57" src="https://github.com/user-attachments/assets/0326224d-9abb-45b0-9d7f-4112a193b30d" />
 # discourse-quick-reply-box
 
 XenForo-stílusú azonnali válasz doboz minden téma alján. A "Válasz" gombok
