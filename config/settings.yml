@@ -2,6 +2,9 @@ plugins:
   quick_reply_box_enabled:
     default: true
     client: true
+  quick_reply_show_toolbar:
+    default: true
+    client: true
   quick_reply_disable_on_mobile:
     default: false
     client: true

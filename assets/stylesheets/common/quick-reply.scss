@@ -51,37 +51,18 @@
     border-radius: 50%;
   }
 
-  &__editor {
-    min-width: 0;
+  &__toolbar {
+    display: flex;
+    gap: 0.1em;
+  }
 
-    .d-editor-container {
-      width: 100%;
-      overflow: hidden;
-      border-radius: var(--d-input-border-radius, 8px);
-    }
-
-    .d-editor-button-bar {
-      box-sizing: border-box;
-      height: auto;
-      min-height: 3.2em;
-      margin: 0;
-      padding: 0.4em 0.6em;
-      overflow: visible;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.15em;
-      border-radius: 0;
-    }
-
-    .composer-toggle-switch {
-      flex-shrink: 0;
-      margin-inline-end: 0.4em;
-    }
-
-    .d-editor-input {
-      min-height: 7em;
-      max-height: 50vh;
-    }
+  &__input {
+    width: 100%;
+    min-height: 5.5em;
+    max-height: 420px;
+    margin: 0;
+    resize: vertical;
+    box-sizing: border-box;
   }
 
   &__notice {
