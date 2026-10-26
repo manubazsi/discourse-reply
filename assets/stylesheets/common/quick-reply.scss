@@ -45,6 +45,12 @@
     }
   }
 
+  &__target-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+  }
+
   &__toolbar {
     display: flex;
     gap: 0.1em;

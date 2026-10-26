@@ -5,6 +5,7 @@ import { action } from "@ember/object";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
+import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
 import { getURLWithCDN } from "discourse/lib/get-url";
@@ -38,12 +39,12 @@ export default class QuickReplyBox extends Component {
       return;
     }
     this.text = this.loadDraft();
-    this.quickReply.register(this.focusBox);
+    this.quickReply.register(this.receive);
   }
 
   willDestroy() {
     super.willDestroy(...arguments);
-    this.quickReply.unregister(this.focusBox);
+    this.quickReply.unregister(this.receive);
   }
 
   get hidden() {
@@ -67,6 +68,11 @@ export default class QuickReplyBox extends Component {
   get avatarSrc() {
     const tpl = this.currentUser?.avatar_template;
     return tpl ? getURLWithCDN(tpl.replace("{size}", "90")) : null;
+  }
+
+  get targetAvatarSrc() {
+    const tpl = this.quickReply.replyToPost?.avatar_template;
+    return tpl ? getURLWithCDN(tpl.replace("{size}", "40")) : null;
   }
 
   get showToolbar() {
@@ -110,8 +116,33 @@ export default class QuickReplyBox extends Component {
   setTextarea(el) {
     this.textarea = el;
     this.autosize();
-    if (this.quickReply.consumePending()) {
-      this.focusBox();
+    const pending = this.quickReply.consumePending();
+    if (pending) {
+      this.receive(pending.quote);
+    }
+  }
+
+  @action
+  receive(quote) {
+    if (quote) {
+      this.appendQuote(quote);
+    }
+    this.focusBox();
+  }
+
+  appendQuote(quote) {
+    const current = this.textarea ? this.textarea.value : this.text;
+    let separator = "";
+    if (current && !current.endsWith("\n\n")) {
+      separator = current.endsWith("\n") ? "\n" : "\n\n";
+    }
+    const next = `${current}${separator}${quote}`;
+    this.text = next;
+    this.saveDraft();
+    if (this.textarea) {
+      this.textarea.value = next;
+      this.autosize();
+      this.textarea.setSelectionRange(next.length, next.length);
     }
   }
 
@@ -189,9 +220,15 @@ export default class QuickReplyBox extends Component {
     this.wrap("[", "](https://)", i18n("quick_reply.link"));
   }
 
+  @action
+  clearTarget() {
+    this.quickReply.replyToPost = null;
+  }
+
   resetBox() {
     this.text = "";
     this.saveDraft();
+    this.quickReply.replyToPost = null;
     if (this.textarea) {
       this.textarea.value = "";
       this.textarea.style.height = "";
@@ -218,6 +255,10 @@ export default class QuickReplyBox extends Component {
     this.notice = null;
 
     const data = { raw, topic_id: this.topic.id };
+    const targetNumber = Number(this.quickReply.replyToPost?.post_number);
+    if (targetNumber > 1) {
+      data.reply_to_post_number = targetNumber;
+    }
 
     try {
       const result = await ajax("/posts.json", { type: "POST", data });
@@ -252,6 +293,7 @@ export default class QuickReplyBox extends Component {
       draftKey: topic.draft_key,
       draftSequence: topic.draft_sequence,
       topic,
+      post: this.quickReply.replyToPost || undefined,
       reply: this.text,
     });
     this.resetBox();
@@ -267,6 +309,33 @@ export default class QuickReplyBox extends Component {
         {{/if}}
 
         <div class="quick-reply__main">
+          {{#if this.quickReply.replyToPost}}
+            <div class="quick-reply__target">
+              {{#if this.targetAvatarSrc}}
+                <img
+                  class="quick-reply__target-avatar"
+                  src={{this.targetAvatarSrc}}
+                  alt=""
+                  width="20"
+                  height="20"
+                />
+              {{else}}
+                {{icon "reply"}}
+              {{/if}}
+              <span>{{i18n
+                  "quick_reply.replying_to"
+                  username=this.quickReply.replyToPost.username
+                  post_number=this.quickReply.replyToPost.post_number
+                }}</span>
+              <DButton
+                @icon="xmark"
+                @action={{this.clearTarget}}
+                @title="quick_reply.cancel_target"
+                class="btn-flat btn-small quick-reply__target-clear"
+              />
+            </div>
+          {{/if}}
+
           {{#if this.showToolbar}}
             <div class="quick-reply__toolbar">
               <DButton @icon="bold" @action={{this.bold}} @title="quick_reply.bold" class="btn-flat btn-small" />
@@ -307,7 +376,6 @@ export default class QuickReplyBox extends Component {
             />
             <DButton
               @action={{this.openFullComposer}}
-              @icon="up-right-and-down-left-from-center"
               @label="quick_reply.full_composer"
               @title="quick_reply.full_composer_title"
               class="btn-default quick-reply__full"
