@@ -4,9 +4,16 @@ import { service } from "@ember/service";
 import { apiInitializer } from "discourse/lib/api";
 import DiscourseURL from "discourse/lib/url";
 
-function buildQuote(post, text, full) {
-  const fullFlag = full ? ", full:true" : "";
-  return `[quote="${post.username}, post:${post.post_number}, topic:${post.topic_id}${fullFlag}"]\n${text.trim()}\n[/quote]\n\n`;
+function buildQuote(post, text, opts = {}) {
+  const params = [
+    opts.username || post.username,
+    `post:${opts.post || post.post_number}`,
+    `topic:${opts.topic || post.topic_id}`,
+  ];
+  if (opts.full) {
+    params.push("full:true");
+  }
+  return `[quote="${params.join(", ")}"]\n${text.trim()}\n[/quote]\n\n`;
 }
 
 export default apiInitializer("1.8.0", (api) => {
@@ -14,40 +21,22 @@ export default apiInitializer("1.8.0", (api) => {
     return class extends Superclass {
       @service quickReply;
 
-      @action
-      replyToPost(post) {
+      shouldUseQuickReply() {
         const settings = this.siteSettings;
-        const topic = this.model;
         const site = getOwner(this).lookup("service:site");
         const disabledOnMobile =
           settings.quick_reply_disable_on_mobile && site?.mobileView;
 
-        const useQuickBox =
+        return !!(
           settings.quick_reply_box_enabled &&
           !disabledOnMobile &&
-          topic?.details?.can_create_post;
+          this.model?.details?.can_create_post
+        );
+      }
 
-        if (!useQuickBox) {
-          return super.replyToPost(...arguments);
-        }
-
-        let target =
-          post && typeof post === "object" && Number(post.post_number) > 1
-            ? post
-            : null;
-        let quote = null;
-
-        const quoteState = this.quoteState;
-        if (quoteState?.buffer) {
-          const quoted = quoteState.postId
-            ? topic.postStream?.findLoadedPost(quoteState.postId)
-            : post;
-          if (quoted) {
-            quote = buildQuote(quoted, quoteState.buffer, quoteState.opts?.full);
-            target = Number(quoted.post_number) > 1 ? quoted : null;
-          }
-          quoteState.clear?.();
-        }
+      sendToQuickReply(post, quote) {
+        const topic = this.model;
+        const target = post && Number(post.post_number) > 1 ? post : null;
 
         this.quickReply.focus(target, quote);
 
@@ -56,6 +45,51 @@ export default apiInitializer("1.8.0", (api) => {
             topic.lastPostUrl || `${topic.url}/${topic.highest_post_number}`;
           DiscourseURL.routeTo(url);
         }
+      }
+
+      @action
+      replyToPost(post) {
+        if (!this.shouldUseQuickReply()) {
+          return super.replyToPost(...arguments);
+        }
+
+        const quoteState = this.quoteState;
+        let target =
+          post && typeof post === "object" && post.post_number ? post : null;
+        let quote = null;
+
+        if (quoteState?.buffer) {
+          const quoted = quoteState.postId
+            ? this.model.postStream?.findLoadedPost(quoteState.postId)
+            : target;
+          if (quoted) {
+            quote = buildQuote(quoted, quoteState.buffer, quoteState.opts);
+            target = quoted;
+          }
+          quoteState.clear?.();
+        }
+
+        this.sendToQuickReply(target, quote);
+      }
+
+      @action
+      selectText() {
+        if (!this.shouldUseQuickReply()) {
+          return super.selectText(...arguments);
+        }
+
+        const quoteState = this.quoteState;
+        const { postId, buffer, opts } = quoteState;
+        const postStream = this.model.postStream;
+        const loaded = postStream.findLoadedPost(postId);
+        const promise = loaded
+          ? Promise.resolve(loaded)
+          : postStream.loadPost(postId);
+
+        return promise.then((quotedPost) => {
+          this.sendToQuickReply(quotedPost, buildQuote(quotedPost, buffer, opts));
+          quoteState.clear?.();
+        });
       }
     };
   });
