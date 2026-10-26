@@ -2,7 +2,6 @@ hu:
   js:
     quick_reply:
       placeholder: "Írd meg a válaszod… (Ctrl+Enter a küldéshez)"
-      aria_label: "Azonnali válasz"
       submit: "Válasz"
       full_composer: "Teljes szerkesztő"
       full_composer_title: "Folytatás a teljes szerkesztőben"
@@ -10,8 +9,3 @@ hu:
       cancel_target: "Válasz a témára"
       queued: "A válaszod elküldve, jóváhagyásra vár."
       too_short: "A válaszod túl rövid (minimum %{min} karakter)."
-      bold: "Félkövér"
-      italic: "Dőlt"
-      quote: "Idézet"
-      code: "Kód"
-      link: "Hivatkozás"

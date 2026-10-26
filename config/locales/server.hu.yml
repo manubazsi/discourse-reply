@@ -1,5 +1,4 @@
 hu:
   site_settings:
     quick_reply_box_enabled: "Azonnali válasz doboz megjelenítése a témák alján, a felugró szerkesztő helyett."
-    quick_reply_show_toolbar: "Kis formázó eszköztár megjelenítése a válasz doboz felett."
     quick_reply_disable_on_mobile: "Az azonnali válasz doboz kikapcsolása mobilon. Helyette a normál szerkesztő jelenik meg."

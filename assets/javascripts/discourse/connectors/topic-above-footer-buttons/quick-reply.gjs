@@ -2,9 +2,11 @@ import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
+import { next } from "@ember/runloop";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
+import DEditor from "discourse/components/d-editor";
 import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
@@ -31,7 +33,7 @@ export default class QuickReplyBox extends Component {
   @tracked noticeIsError = false;
   @tracked submitting = false;
 
-  textarea = null;
+  root = null;
 
   constructor() {
     super(...arguments);
@@ -75,8 +77,8 @@ export default class QuickReplyBox extends Component {
     return tpl ? getURLWithCDN(tpl.replace("{size}", "40")) : null;
   }
 
-  get showToolbar() {
-    return this.siteSettings.quick_reply_show_toolbar;
+  get placeholderText() {
+    return i18n("quick_reply.placeholder");
   }
 
   get submitDisabled() {
@@ -103,22 +105,12 @@ export default class QuickReplyBox extends Component {
     }
   }
 
-  autosize() {
-    const el = this.textarea;
-    if (!el) {
-      return;
-    }
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight + 2, 420)}px`;
-  }
-
   @action
-  setTextarea(el) {
-    this.textarea = el;
-    this.autosize();
+  setRoot(el) {
+    this.root = el;
     const pending = this.quickReply.consumePending();
     if (pending) {
-      this.receive(pending.quote);
+      next(() => this.receive(pending.quote));
     }
   }
 
@@ -127,40 +119,35 @@ export default class QuickReplyBox extends Component {
     if (quote) {
       this.appendQuote(quote);
     }
-    this.focusBox();
+    next(() => this.focusBox());
   }
 
   appendQuote(quote) {
-    const current = this.textarea ? this.textarea.value : this.text;
+    const current = this.text;
     let separator = "";
     if (current && !current.endsWith("\n\n")) {
       separator = current.endsWith("\n") ? "\n" : "\n\n";
     }
-    const next = `${current}${separator}${quote}`;
-    this.text = next;
+    this.text = `${current}${separator}${quote}`;
     this.saveDraft();
-    if (this.textarea) {
-      this.textarea.value = next;
-      this.autosize();
-      this.textarea.setSelectionRange(next.length, next.length);
-    }
   }
 
-  @action
   focusBox() {
-    const el = this.textarea;
-    if (!el) {
+    if (!this.root) {
       return;
     }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.focus({ preventScroll: true });
+    this.root.scrollIntoView({ behavior: "smooth", block: "center" });
+    const input = this.root.querySelector(
+      "textarea.d-editor-input, .ProseMirror, textarea"
+    );
+    input?.focus({ preventScroll: true });
   }
 
   @action
-  onInput(event) {
-    this.text = event.target.value;
+  onChange(value) {
+    const updated = typeof value === "string" ? value : value?.target?.value;
+    this.text = updated ?? "";
     this.saveDraft();
-    this.autosize();
   }
 
   @action
@@ -168,56 +155,7 @@ export default class QuickReplyBox extends Component {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       this.submit();
-    } else if (event.key === "Escape") {
-      event.target.blur();
     }
-  }
-
-
-  wrap(before, after, placeholder) {
-    const el = this.textarea;
-    if (!el) {
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = el.value.slice(start, end) || placeholder;
-    const next =
-      el.value.slice(0, start) + before + selected + after + el.value.slice(end);
-    el.value = next;
-    this.text = next;
-    this.saveDraft();
-    el.focus();
-    el.setSelectionRange(
-      start + before.length,
-      start + before.length + selected.length
-    );
-    this.autosize();
-  }
-
-  @action
-  bold() {
-    this.wrap("**", "**", i18n("quick_reply.bold"));
-  }
-
-  @action
-  italic() {
-    this.wrap("*", "*", i18n("quick_reply.italic"));
-  }
-
-  @action
-  quote() {
-    this.wrap("> ", "", i18n("quick_reply.quote"));
-  }
-
-  @action
-  code() {
-    this.wrap("`", "`", "code");
-  }
-
-  @action
-  link() {
-    this.wrap("[", "](https://)", i18n("quick_reply.link"));
   }
 
   @action
@@ -229,10 +167,6 @@ export default class QuickReplyBox extends Component {
     this.text = "";
     this.saveDraft();
     this.quickReply.replyToPost = null;
-    if (this.textarea) {
-      this.textarea.value = "";
-      this.textarea.style.height = "";
-    }
   }
 
   @action
@@ -301,7 +235,7 @@ export default class QuickReplyBox extends Component {
 
   <template>
     {{#unless this.hidden}}
-      <div class="quick-reply" id="quick-reply-box">
+      <div class="quick-reply" id="quick-reply-box" {{didInsert this.setRoot}}>
         {{#if this.avatarSrc}}
           <div class="quick-reply__avatar">
             <img src={{this.avatarSrc}} alt="" width="45" height="45" />
@@ -336,26 +270,17 @@ export default class QuickReplyBox extends Component {
             </div>
           {{/if}}
 
-          {{#if this.showToolbar}}
-            <div class="quick-reply__toolbar">
-              <DButton @icon="bold" @action={{this.bold}} @title="quick_reply.bold" class="btn-flat btn-small" />
-              <DButton @icon="italic" @action={{this.italic}} @title="quick_reply.italic" class="btn-flat btn-small" />
-              <DButton @icon="quote-right" @action={{this.quote}} @title="quick_reply.quote" class="btn-flat btn-small" />
-              <DButton @icon="code" @action={{this.code}} @title="quick_reply.code" class="btn-flat btn-small" />
-              <DButton @icon="link" @action={{this.link}} @title="quick_reply.link" class="btn-flat btn-small" />
-            </div>
-          {{/if}}
-
-          <textarea
-            class="quick-reply__input"
-            rows="3"
-            aria-label={{i18n "quick_reply.aria_label"}}
-            placeholder={{i18n "quick_reply.placeholder"}}
-            value={{this.text}}
-            {{didInsert this.setTextarea}}
-            {{on "input" this.onInput}}
-            {{on "keydown" this.onKeydown}}
-          ></textarea>
+          <div class="quick-reply__editor" {{on "keydown" this.onKeydown}}>
+            <DEditor
+              @value={{this.text}}
+              @change={{this.onChange}}
+              @placeholder="quick_reply.placeholder"
+              @placeholderOverride={{this.placeholderText}}
+              @topicId={{this.topic.id}}
+              @categoryId={{this.topic.category_id}}
+              @disabled={{this.submitting}}
+            />
+          </div>
 
           {{#if this.notice}}
             <div

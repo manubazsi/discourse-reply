@@ -27,9 +27,12 @@ export default apiInitializer("1.8.0", (api) => {
         const disabledOnMobile =
           settings.quick_reply_disable_on_mobile && site?.mobileView;
 
+        const composer = getOwner(this).lookup("service:composer");
+
         return !!(
           settings.quick_reply_box_enabled &&
           !disabledOnMobile &&
+          !composer?.visible &&
           this.model?.details?.can_create_post
         );
       }
